@@ -11,7 +11,7 @@ def quick_process():
     """Quick process using the standard template"""
     
     excel_file = 'main-data.xlsx'
-    kml_file = 'MyArea.kml'
+    kml_file = 'secA.kml'
     
     print("Quick KML Update from Excel Template")
     print("=" * 40)

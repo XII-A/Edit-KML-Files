@@ -114,7 +114,7 @@ class KMLPolygonEditor:
         polygons = self.get_all_polygons()
         
         for polygon in polygons:
-            if polygon['name'].lower() == polygon_name.lower():
+            if polygon['name'].strip().lower() == polygon_name.strip().lower():
                 placemark = polygon['placemark']
                 
                 # Get description
@@ -244,7 +244,17 @@ class KMLPolygonEditor:
             
             for _, row in df.iterrows():
                 polygon_name = str(row[polygon_column]).strip()
-                
+
+                # Search for the first English letter
+                match = re.search(r'[A-Za-z]', polygon_name)
+
+                first_english_char = match.group(0) if match else None
+
+                polygon_number = str(row['رقم الكتلة السكنية:']).strip().replace("'", "\\")
+
+                polygon_name = f"{first_english_char}-{polygon_number}"
+
+                print(polygon_name)                
                 # Skip empty polygon names
                 if not polygon_name or polygon_name.lower() == 'nan':
                     continue
@@ -424,7 +434,7 @@ class KMLPolygonEditor:
 
 def interactive_editor():
     """Interactive function to edit polygons"""
-    editor = KMLPolygonEditor('MyArea.kml')
+    editor = KMLPolygonEditor('MyArea_updated.kml')
     
     while True:
         print("\n" + "="*60)
@@ -445,6 +455,7 @@ def interactive_editor():
         
         elif choice == '2':
             polygon_name = input("Enter polygon name: ").strip()
+            polygon_name = ""
             info = editor.get_polygon_info(polygon_name)
             
             if info:

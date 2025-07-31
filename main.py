@@ -343,9 +343,7 @@ class KMLPolygonEditor:
             "total_descriptions_added": 0
         }
         
-        # If border_color is specified, update all polygon styles
-        if border_color:
-            self.set_all_polygon_border_colors(border_color)
+
         
         # Process each polygon from Excel data
         for polygon_name, data in excel_data.items():
@@ -405,35 +403,98 @@ class KMLPolygonEditor:
                 update_summary["total_images_added"] += len(data['images'])
                 update_summary["total_descriptions_added"] += len(data['descriptions'])
         
+        # If border_color is specified, update all polygon styles
+        if border_color:
+            print("Setting border color for all polygons...")
+            self.set_all_polygon_border_colors(border_color)
+
         return update_summary
     
     def set_all_polygon_border_colors(self, border_color):
         """
-        Set the border (line) color for all polygons in the KML file.
+        Set the border (line) color for all polygons in the KML file using a shared style at Document level.
         border_color: HTML hex color (e.g. '#FF0000' or 'red')
         """
-        # Convert HTML color to KML aabbggrr format (default alpha=ff)
         def html_color_to_kml(color):
+            # Handle hex colors
             color = color.lstrip('#')
             if len(color) == 6:
                 r, g, b = color[0:2], color[2:4], color[4:6]
-                return f'ff{b}{g}{r}'
-            elif len(color) == 8:  # ARGB
-                a, r, g, b = color[0:2], color[2:4], color[4:6], color[6:8]
-                return f'{a}{b}{g}{r}'
-            # fallback: red
-            return 'ff0000ff'
+                return f'ff{b}{g}{r}'  # KML format: aabbggrr (alpha=ff)
+            return 'ff0000ff'  # Default red if invalid
+            
         kml_color = html_color_to_kml(border_color)
-        # Update all LineStyle color elements
-        for style in self.root.xpath('.//kml:Style', namespaces={'kml': 'http://www.opengis.net/kml/2.2'}):
-            line_style = style.find('.//{http://www.opengis.net/kml/2.2}LineStyle')
-            if line_style is not None:
-                color_elem = line_style.find('{http://www.opengis.net/kml/2.2}color')
-                if color_elem is not None:
-                    color_elem.text = kml_color
-                else:
-                    color_elem = etree.SubElement(line_style, '{http://www.opengis.net/kml/2.2}color')
-                    color_elem.text = kml_color
+        ns = {'kml': 'http://www.opengis.net/kml/2.2'}
+        
+        # Ensure we have a Document element at the root level
+        document = self.root.find('kml:Document', namespaces=ns)
+        if document is None:
+            document = etree.Element('{http://www.opengis.net/kml/2.2}Document')
+            self.root.insert(0, document)  # Insert as first child
+            
+        # Create shared style at Document level
+        style_id = "shared_polygon_style"
+        shared_style = document.find(f'.//kml:Style[@id="{style_id}"]', namespaces=ns)
+        
+        if shared_style is None:
+            # Create new shared style
+            shared_style = etree.Element('{http://www.opengis.net/kml/2.2}Style')
+            shared_style.set('id', style_id)
+            document.insert(0, shared_style)  # Insert at start of Document
+            
+        # Set up LineStyle
+        line_style = shared_style.find('kml:LineStyle', namespaces=ns)
+        if line_style is None:
+            line_style = etree.SubElement(shared_style, '{http://www.opengis.net/kml/2.2}LineStyle')
+            
+        # Set color and width
+        color_elem = line_style.find('kml:color', namespaces=ns)
+        if color_elem is None:
+            color_elem = etree.SubElement(line_style, '{http://www.opengis.net/kml/2.2}color')
+        color_elem.text = kml_color
+            
+        width_elem = line_style.find('kml:width', namespaces=ns)
+        if width_elem is None:
+            width_elem = etree.SubElement(line_style, '{http://www.opengis.net/kml/2.2}width')
+        width_elem.text = '2.5'
+            
+        # Set up PolyStyle
+        poly_style = shared_style.find('kml:PolyStyle', namespaces=ns)
+        if poly_style is None:
+            poly_style = etree.SubElement(shared_style, '{http://www.opengis.net/kml/2.2}PolyStyle')
+            
+        # Ensure outline is visible and fill is transparent
+        outline_elem = poly_style.find('kml:outline', namespaces=ns)
+        if outline_elem is None:
+            outline_elem = etree.SubElement(poly_style, '{http://www.opengis.net/kml/2.2}outline')
+        outline_elem.text = '1'
+            
+        fill_elem = poly_style.find('kml:fill', namespaces=ns)
+        if fill_elem is None:
+            fill_elem = etree.SubElement(poly_style, '{http://www.opengis.net/kml/2.2}fill')
+        fill_elem.text = '0'  # Make polygons transparent
+            
+        print(f"Created/updated shared style at Document level with color {kml_color}")
+            
+        # Apply shared style to all polygons
+        for placemark in self.root.xpath('.//kml:Placemark[kml:Polygon]', namespaces=ns):
+            name_element = placemark.find('.//{http://www.opengis.net/kml/2.2}name')
+            name = name_element.text if name_element is not None else ""
+            
+            # Check if name contains any English letter
+            if re.search(r'[A-Za-z]', name):
+                print(f"Updating style for polygon: {name}")
+                # Remove any existing inline styles
+                for style in placemark.findall('kml:Style', namespaces=ns):
+                    placemark.remove(style)
+                    
+                # Set or update styleUrl
+                style_url = placemark.find('kml:styleUrl', namespaces=ns)
+                if style_url is None:
+                    style_url = etree.SubElement(placemark, '{http://www.opengis.net/kml/2.2}styleUrl')
+                style_url.text = f'#{style_id}'
+            else:
+                print(f"Preserving existing style for polygon: {name}")    
 
     def preview_excel_updates(self, excel_file_path, polygon_column, image_columns, description_columns, 
                             sheet_name=0):

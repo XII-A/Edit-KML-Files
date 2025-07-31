@@ -145,6 +145,24 @@ class KMLPolygonEditor:
         
         return None
     
+    def calculate_centroid(self, coordinates_str):
+        """Calculate the centroid of a polygon from its coordinates string"""
+        # Parse coordinates string into list of points
+        coords = []
+        for point in coordinates_str.strip().split():
+            lon, lat, _ = map(float, point.split(','))
+            coords.append((lon, lat))
+        
+        # Calculate centroid
+        if not coords:
+            return None
+        
+        x_total = sum(x for x, _ in coords)
+        y_total = sum(y for _, y in coords)
+        count = len(coords)
+        
+        return f"{x_total/count},{y_total/count},0"
+
     def update_polygon(self, polygon_name, new_description=None, new_images=None):
         """Update a polygon's description and/or images"""
         polygon_info = self.get_polygon_info(polygon_name)
@@ -155,6 +173,54 @@ class KMLPolygonEditor:
         
         placemark = polygon_info['placemark']
         
+        # Create or find Document element to store shared style
+        ns = {'kml': 'http://www.opengis.net/kml/2.2'}
+        document = self.root.find('kml:Document', namespaces=ns)
+        if document is None:
+            document = etree.Element('{http://www.opengis.net/kml/2.2}Document')
+            self.root.insert(0, document)
+        
+        # Create shared style for invisible points if it doesn't exist
+        style_id = "noIconStyle"
+        shared_style = document.find(f'.//kml:Style[@id="{style_id}"]', namespaces=ns)
+        if shared_style is None:
+            shared_style = etree.SubElement(document, '{http://www.opengis.net/kml/2.2}Style')
+            shared_style.set('id', style_id)
+            
+            icon_style = etree.SubElement(shared_style, '{http://www.opengis.net/kml/2.2}IconStyle')
+            scale = etree.SubElement(icon_style, '{http://www.opengis.net/kml/2.2}scale')
+            scale.text = '0'  # Make icon invisible
+        
+        # Convert to MultiGeometry if needed and add label point
+        polygon = placemark.find('.//{http://www.opengis.net/kml/2.2}Polygon')
+        if polygon is not None:
+            # Get polygon coordinates
+            coords = polygon.find('.//kml:coordinates', namespaces=ns)
+            if coords is not None and coords.text:
+                centroid = self.calculate_centroid(coords.text)
+                
+                # Create MultiGeometry
+                multi_geom = placemark.find('.//{http://www.opengis.net/kml/2.2}MultiGeometry')
+                if multi_geom is None:
+                    multi_geom = etree.Element('{http://www.opengis.net/kml/2.2}MultiGeometry')
+                    # Move polygon under MultiGeometry
+                    multi_geom.append(polygon)
+                    
+                    # Add Point for label
+                    point = etree.SubElement(multi_geom, '{http://www.opengis.net/kml/2.2}Point')
+                    point_coords = etree.SubElement(point, '{http://www.opengis.net/kml/2.2}coordinates')
+                    point_coords.text = centroid
+                    
+                    # Replace original polygon with MultiGeometry
+                    for child in list(placemark):
+                        if child.tag.endswith('Polygon'):
+                            placemark.remove(child)
+                    placemark.append(multi_geom)
+                    
+                    # Add style for invisible point
+                    style_url = etree.SubElement(placemark, '{http://www.opengis.net/kml/2.2}styleUrl')
+                    style_url.text = '#noIconStyle'
+
         # Update description
         if new_description is not None:
             desc_element = placemark.find('.//{http://www.opengis.net/kml/2.2}description')
@@ -427,6 +493,9 @@ class KMLPolygonEditor:
                 update_summary["total_images_added"] += len(data['images'])
                 update_summary["total_descriptions_added"] += len(data['descriptions'])
         
+        # Convert all polygons to include label points
+        self.convert_all_polygons_to_labeled()
+        
         # If border_color is specified, update all polygon styles
         if border_color:
             print("Setting border color for all polygons...")
@@ -434,6 +503,62 @@ class KMLPolygonEditor:
 
         return update_summary
     
+    def convert_all_polygons_to_labeled(self):
+        """Convert all polygons to use MultiGeometry with label points"""
+        ns = {'kml': 'http://www.opengis.net/kml/2.2'}
+        
+        # Create or find Document element to store shared style
+        document = self.root.find('kml:Document', namespaces=ns)
+        if document is None:
+            document = etree.Element('{http://www.opengis.net/kml/2.2}Document')
+            self.root.insert(0, document)
+        
+        # Create shared style for invisible points if it doesn't exist
+        style_id = "noIconStyle"
+        shared_style = document.find(f'.//kml:Style[@id="{style_id}"]', namespaces=ns)
+        if shared_style is None:
+            shared_style = etree.SubElement(document, '{http://www.opengis.net/kml/2.2}Style')
+            shared_style.set('id', style_id)
+            
+            icon_style = etree.SubElement(shared_style, '{http://www.opengis.net/kml/2.2}IconStyle')
+            scale = etree.SubElement(icon_style, '{http://www.opengis.net/kml/2.2}scale')
+            scale.text = '0'  # Make icon invisible
+            
+        # Process all placemarks with polygons
+        for placemark in self.root.xpath('.//kml:Placemark[kml:Polygon]', namespaces=ns):
+            polygon = placemark.find('.//{http://www.opengis.net/kml/2.2}Polygon')
+            if polygon is not None:
+                # Get polygon coordinates
+                coords = polygon.find('.//kml:coordinates', namespaces=ns)
+                if coords is not None and coords.text:
+                    centroid = self.calculate_centroid(coords.text)
+                    
+                    # Skip if already has MultiGeometry
+                    multi_geom = placemark.find('.//{http://www.opengis.net/kml/2.2}MultiGeometry')
+                    if multi_geom is None:
+                        multi_geom = etree.Element('{http://www.opengis.net/kml/2.2}MultiGeometry')
+                        # Move polygon under MultiGeometry
+                        multi_geom.append(polygon)
+                        
+                        # Add Point for label
+                        point = etree.SubElement(multi_geom, '{http://www.opengis.net/kml/2.2}Point')
+                        point_coords = etree.SubElement(point, '{http://www.opengis.net/kml/2.2}coordinates')
+                        point_coords.text = centroid
+                        
+                        # Replace original polygon with MultiGeometry
+                        for child in list(placemark):
+                            if child.tag.endswith('Polygon'):
+                                placemark.remove(child)
+                        placemark.append(multi_geom)
+                        
+                        # Add style for invisible point if not already present
+                        style_url = placemark.find('kml:styleUrl', namespaces=ns)
+                        if style_url is None:
+                            style_url = etree.SubElement(placemark, '{http://www.opengis.net/kml/2.2}styleUrl')
+                        style_url.text = '#noIconStyle'
+        
+        print("Converted all polygons to include label points")
+
     def set_all_polygon_border_colors(self, border_color):
         """
         Set the border (line) color for all polygons in the KML file using a shared style at Document level.

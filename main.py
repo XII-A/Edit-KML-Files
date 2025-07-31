@@ -387,27 +387,35 @@ class KMLPolygonEditor:
                 description_parts = data['descriptions'].copy()
                 denominator = int(data['descriptions'][0]) # Total number of buildings
                 
-                description_parts[0] = f"<b>عدد المباني تحت القطاع:</b> {description_parts[0]}"
+                description_parts[0] = f"عدد المباني تحت القطاع: {description_parts[0]}"
     
                 avgFloors = int(int(description_parts[1]) / denominator)
-                description_parts[1] = f"<b>متوسط عدد الطوابق في المباني:</b> {avgFloors}"
+                description_parts[1] = f"متوسط عدد الطوابق في المباني: {avgFloors}"
                 
                 avgArea = int(int(description_parts[2]) / denominator)
-                description_parts[2] = f"<b>متوسط المساحة الاجمالية للمباني:</b> {avgArea} متر"
+                description_parts[2] = f"متوسط المساحة الاجمالية للمباني: {avgArea} متر"
                 
-                description_parts[3] = f"<b>عدد المباني السليمة:</b> {description_parts[3]}"
-                description_parts[4] = f"<b>عدد المباني المتضررة جزئيا:</b> {description_parts[4]}"
-                description_parts[5] = f"<b>عدد المباني المتضررة بشكل كامل:</b> {description_parts[5]}"
-                description_parts[6] = f"<b>عدد المباني المهدومة:</b> {description_parts[6]}" 
+                description_parts[3] = f"عدد المباني السليمة: {description_parts[3]}"
+                description_parts[4] = f"عدد المباني المتضررة جزئيا: {description_parts[4]}"
+                description_parts[5] = f"عدد المباني المتضررة بشكل كامل: {description_parts[5]}"
+                description_parts[6] = f"عدد المباني المهدومة: {description_parts[6]}" 
                 
                 avgApartments = int(int(description_parts[7]) / denominator if denominator > 0 else 0)
-                description_parts[7] = f"<b>متوسط عدد الشقق في المباني:</b> {avgApartments}"
-                description_parts[8] = f"<b>مجموع التكلفة التقديرية لترميم الشقق/المباني:</b> {description_parts[8]}"
+                description_parts[7] = f"متوسط عدد الشقق في المباني: {avgApartments}"
+                description_parts[8] = f"مجموع التكلفة التقديرية لترميم الشقق/المباني: {description_parts[8]}"
             
                 new_description += "<br/>".join(
                     [
                         "اسم الكتلة السكنية: " + actual_polygon_name,
-                        *description_parts,
+                        description_parts[0],
+                        description_parts[1],
+                        description_parts[2],
+                        description_parts[7],
+                        description_parts[8],
+                        description_parts[3],
+                        description_parts[4],
+                        description_parts[5],
+                        description_parts[6]
                     ]
                 )
             

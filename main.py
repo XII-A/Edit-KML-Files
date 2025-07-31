@@ -263,7 +263,7 @@ class KMLPolygonEditor:
                 if polygon_name not in polygon_data:
                     polygon_data[polygon_name] = {
                         'images': [],
-                        'descriptions': [0,0,0,0,0,0,0]
+                        'descriptions': [0,0,0,0,0,0,0,0,0]
                         # index 0: number of buildings under the polygon
                         # index 1: sum of the floors under the polygon
                         # index 2: sum of areas under the polygon
@@ -271,6 +271,8 @@ class KMLPolygonEditor:
                         # index 4: number of semi-damaged buildings under the polygon
                         # index 5: number of damaged/needs to be removed buildings under the polygon
                         # index 6: number of completely destroyed buildings under the polygon
+                        # index 7: sum of apartments under the polygon
+                        # index 8: sum of the total costs of repairs for buildings under the polygon
                     }
                 
                 # Process all image columns
@@ -284,6 +286,8 @@ class KMLPolygonEditor:
                 polygon_data[polygon_name]['descriptions'][0] += 1
                 polygon_data[polygon_name]['descriptions'][1] += int(row['عدد الطوابق في البناء (رقما):']) if pd.notna(row['عدد الطوابق في البناء (رقما):']) else 0
                 polygon_data[polygon_name]['descriptions'][2] += int(row['المساحة الاجمالية  (متر)']) if pd.notna(row['المساحة الاجمالية  (متر)']) else 0
+                polygon_data[polygon_name]['descriptions'][7] += int(row['ما هو عدد الشقق في البناء:']) if pd.notna(row['ما هو عدد الشقق في البناء:']) else 0
+                polygon_data[polygon_name]['descriptions'][8] += int(row['ما هي التكلفة التقديرية لترميم الشقق/المبنى؟']) if pd.notna(row['ما هي التكلفة التقديرية لترميم الشقق/المبنى؟']) else 0
 
                 if  "سليم" in row['ما هو نوع الضرر الذي أصاب البناء:']:
                     polygon_data[polygon_name]['descriptions'][3] += 1
@@ -382,18 +386,30 @@ class KMLPolygonEditor:
             if data['descriptions']:
                 description_parts = data['descriptions'].copy()
                 denominator = int(data['descriptions'][0]) # Total number of buildings
+                
                 description_parts[0] = f"<b>عدد المباني تحت القطاع:</b> {description_parts[0]}"
-                print(f"Denominator: {denominator}")
-                avgFloors = int(description_parts[1]) / denominator
-                description_parts[1] = f"<b>متوسط عدد الطوابق في المباني:</b> {avgFloors:.2f}"
-                avgArea = int(description_parts[2]) / denominator
-                description_parts[2] = f"<b>متوسط المساحة الاجمالية للمباني:</b> {avgArea:.2f} متر"
+    
+                avgFloors = int(int(description_parts[1]) / denominator)
+                description_parts[1] = f"<b>متوسط عدد الطوابق في المباني:</b> {avgFloors}"
+                
+                avgArea = int(int(description_parts[2]) / denominator)
+                description_parts[2] = f"<b>متوسط المساحة الاجمالية للمباني:</b> {avgArea} متر"
+                
                 description_parts[3] = f"<b>عدد المباني السليمة:</b> {description_parts[3]}"
                 description_parts[4] = f"<b>عدد المباني المتضررة جزئيا:</b> {description_parts[4]}"
                 description_parts[5] = f"<b>عدد المباني المتضررة بشكل كامل:</b> {description_parts[5]}"
                 description_parts[6] = f"<b>عدد المباني المهدومة:</b> {description_parts[6]}" 
+                
+                avgApartments = int(int(description_parts[7]) / denominator if denominator > 0 else 0)
+                description_parts[7] = f"<b>متوسط عدد الشقق في المباني:</b> {avgApartments}"
+                description_parts[8] = f"<b>مجموع التكلفة التقديرية لترميم الشقق/المباني:</b> {description_parts[8]}"
             
-                new_description += "<br/>".join(description_parts)
+                new_description += "<br/>".join(
+                    [
+                        "اسم الكتلة السكنية: " + actual_polygon_name,
+                        *description_parts,
+                    ]
+                )
             
             # Update the polygon
             success = self.update_polygon(actual_polygon_name, new_description, new_images)

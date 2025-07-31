@@ -263,7 +263,14 @@ class KMLPolygonEditor:
                 if polygon_name not in polygon_data:
                     polygon_data[polygon_name] = {
                         'images': [],
-                        'descriptions': []
+                        'descriptions': [0,0,0,0,0,0,0]
+                        # index 0: number of buildings under the polygon
+                        # index 1: sum of the floors under the polygon
+                        # index 2: sum of areas under the polygon
+                        # index 3: number of safe buildings under the polygon
+                        # index 4: number of semi-damaged buildings under the polygon
+                        # index 5: number of damaged/needs to be removed buildings under the polygon
+                        # index 6: number of completely destroyed buildings under the polygon
                     }
                 
                 # Process all image columns
@@ -273,6 +280,20 @@ class KMLPolygonEditor:
                         if image_url and image_url.lower() != 'nan':
                             polygon_data[polygon_name]['images'].append(image_url)
                 
+                
+                polygon_data[polygon_name]['descriptions'][0] += 1
+                polygon_data[polygon_name]['descriptions'][1] += int(row['عدد الطوابق في البناء (رقما):']) if pd.notna(row['عدد الطوابق في البناء (رقما):']) else 0
+                polygon_data[polygon_name]['descriptions'][2] += int(row['المساحة الاجمالية  (متر)']) if pd.notna(row['المساحة الاجمالية  (متر)']) else 0
+
+                if  "سليم" in row['ما هو نوع الضرر الذي أصاب البناء:']:
+                    polygon_data[polygon_name]['descriptions'][3] += 1
+                elif "جزئي" in row['ما هو نوع الضرر الذي أصاب البناء:']:
+                    polygon_data[polygon_name]['descriptions'][4] += 1
+                elif "مدمر" in row['ما هو نوع الضرر الذي أصاب البناء:']:
+                    polygon_data[polygon_name]['descriptions'][5] += 1
+                elif "مهدوم" in row['ما هو نوع الضرر الذي أصاب البناء:']:
+                    polygon_data[polygon_name]['descriptions'][6] += 1
+
                 # Process all description columns
                 for desc_col in description_columns:
                     if desc_col in df.columns:
@@ -356,10 +377,20 @@ class KMLPolygonEditor:
             
             # Add new description parts
             if data['descriptions']:
-                description_parts = data['descriptions']
-                if new_description:
-                    new_description += "\n\n"
-                new_description += "\n".join(description_parts)
+                description_parts = data['descriptions'].copy()
+                denominator = int(data['descriptions'][0]) # Total number of buildings
+                description_parts[0] = f"عدد المباني تحت القطاع: {description_parts[0]}"
+                print(f"Denominator: {denominator}")
+                avgFloors = int(description_parts[1]) / denominator
+                description_parts[1] = f"متوسط عدد الطوابق في المباني: {avgFloors:.2f}"
+                avgArea = int(description_parts[2]) / denominator
+                description_parts[2] = f"متوسط المساحة الاجمالية للمباني: {avgArea:.2f} متر"
+                description_parts[3] = f"عدد المباني السليمة: {description_parts[3]}"
+                description_parts[4] = f"عدد المباني المتضررة جزئيا: {description_parts[4]}"
+                description_parts[5] = f"عدد المباني المتضررة بشكل كامل: {description_parts[5]}"
+                description_parts[6] = f"عدد المباني المهدومة: {description_parts[6]}" 
+            
+                new_description += "<br/>".join(description_parts)
             
             # Update the polygon
             success = self.update_polygon(actual_polygon_name, new_description, new_images)

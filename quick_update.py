@@ -10,8 +10,8 @@ import os
 def quick_process():
     """Quick process using the standard template"""
     
-    excel_file = 'main-data.xlsx'
-    kml_file = 'secA.kml'
+    excel_file = 'latestData.xlsx'
+    kml_file = 'latestOne.kml'
     
     print("Quick KML Update from Excel Template")
     print("=" * 40)
@@ -35,7 +35,7 @@ def quick_process():
         excel_file_path=excel_file,
         polygon_column='اسم/ رقم القطاع:',
         image_columns=['صورة للزاوية 1:_URL', 'صورة للزاوية 2:_URL', 'صورة للزاوية 3:_URL','صورة للزاوية 4:_URL'],
-        description_columns=['اسم جامع البيانات:', 'نوع البناء:', 'ما هو عدد الشقق في البناء:'],
+        description_columns=[],
         merge_with_existing=True
     )
     

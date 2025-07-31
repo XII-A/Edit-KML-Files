@@ -8,7 +8,7 @@ from main import KMLPolygonEditor
 import os
 
 def quick_process():
-    """Quick process using the standard template"""
+    """Quick process using the standard template, with optional border color for all polygons"""
     
     excel_file = 'latestData.xlsx'
     kml_file = 'latestOne.kml'
@@ -36,7 +36,8 @@ def quick_process():
         polygon_column='اسم/ رقم القطاع:',
         image_columns=['صورة للزاوية 1:_URL', 'صورة للزاوية 2:_URL', 'صورة للزاوية 3:_URL','صورة للزاوية 4:_URL'],
         description_columns=[],
-        merge_with_existing=True
+        merge_with_existing=True,
+        border_color="#FFFF00"
     )
     
     if summary["success"]:

@@ -309,7 +309,7 @@ class KMLPolygonEditor:
             return None
     
     def update_polygons_from_excel(self, excel_file_path, polygon_column, image_columns, description_columns, 
-                                 sheet_name=0, merge_with_existing=True):
+                                 sheet_name=0, merge_with_existing=True, border_color=None):
         """
         Update polygons with data from Excel file
         
@@ -320,6 +320,7 @@ class KMLPolygonEditor:
             description_columns (str or list): Column name(s) that contain description text
             sheet_name (str/int): Sheet name or index (default: 0 for first sheet)
             merge_with_existing (bool): Whether to merge with existing data or replace it
+            border_color (str): Border color for polygons (HTML hex color, e.g. '#FF0000')
         
         Returns:
             dict: Summary of updates performed
@@ -341,6 +342,10 @@ class KMLPolygonEditor:
             "total_images_added": 0,
             "total_descriptions_added": 0
         }
+        
+        # If border_color is specified, update all polygon styles
+        if border_color:
+            self.set_all_polygon_border_colors(border_color)
         
         # Process each polygon from Excel data
         for polygon_name, data in excel_data.items():
@@ -379,16 +384,16 @@ class KMLPolygonEditor:
             if data['descriptions']:
                 description_parts = data['descriptions'].copy()
                 denominator = int(data['descriptions'][0]) # Total number of buildings
-                description_parts[0] = f"عدد المباني تحت القطاع: {description_parts[0]}"
+                description_parts[0] = f"<b>عدد المباني تحت القطاع:</b> {description_parts[0]}"
                 print(f"Denominator: {denominator}")
                 avgFloors = int(description_parts[1]) / denominator
-                description_parts[1] = f"متوسط عدد الطوابق في المباني: {avgFloors:.2f}"
+                description_parts[1] = f"<b>متوسط عدد الطوابق في المباني:</b> {avgFloors:.2f}"
                 avgArea = int(description_parts[2]) / denominator
-                description_parts[2] = f"متوسط المساحة الاجمالية للمباني: {avgArea:.2f} متر"
-                description_parts[3] = f"عدد المباني السليمة: {description_parts[3]}"
-                description_parts[4] = f"عدد المباني المتضررة جزئيا: {description_parts[4]}"
-                description_parts[5] = f"عدد المباني المتضررة بشكل كامل: {description_parts[5]}"
-                description_parts[6] = f"عدد المباني المهدومة: {description_parts[6]}" 
+                description_parts[2] = f"<b>متوسط المساحة الاجمالية للمباني:</b> {avgArea:.2f} متر"
+                description_parts[3] = f"<b>عدد المباني السليمة:</b> {description_parts[3]}"
+                description_parts[4] = f"<b>عدد المباني المتضررة جزئيا:</b> {description_parts[4]}"
+                description_parts[5] = f"<b>عدد المباني المتضررة بشكل كامل:</b> {description_parts[5]}"
+                description_parts[6] = f"<b>عدد المباني المهدومة:</b> {description_parts[6]}" 
             
                 new_description += "<br/>".join(description_parts)
             
@@ -402,6 +407,34 @@ class KMLPolygonEditor:
         
         return update_summary
     
+    def set_all_polygon_border_colors(self, border_color):
+        """
+        Set the border (line) color for all polygons in the KML file.
+        border_color: HTML hex color (e.g. '#FF0000' or 'red')
+        """
+        # Convert HTML color to KML aabbggrr format (default alpha=ff)
+        def html_color_to_kml(color):
+            color = color.lstrip('#')
+            if len(color) == 6:
+                r, g, b = color[0:2], color[2:4], color[4:6]
+                return f'ff{b}{g}{r}'
+            elif len(color) == 8:  # ARGB
+                a, r, g, b = color[0:2], color[2:4], color[4:6], color[6:8]
+                return f'{a}{b}{g}{r}'
+            # fallback: red
+            return 'ff0000ff'
+        kml_color = html_color_to_kml(border_color)
+        # Update all LineStyle color elements
+        for style in self.root.xpath('.//kml:Style', namespaces={'kml': 'http://www.opengis.net/kml/2.2'}):
+            line_style = style.find('.//{http://www.opengis.net/kml/2.2}LineStyle')
+            if line_style is not None:
+                color_elem = line_style.find('{http://www.opengis.net/kml/2.2}color')
+                if color_elem is not None:
+                    color_elem.text = kml_color
+                else:
+                    color_elem = etree.SubElement(line_style, '{http://www.opengis.net/kml/2.2}color')
+                    color_elem.text = kml_color
+
     def preview_excel_updates(self, excel_file_path, polygon_column, image_columns, description_columns, 
                             sheet_name=0):
         """

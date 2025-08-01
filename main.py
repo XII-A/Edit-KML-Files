@@ -245,29 +245,32 @@ class KMLPolygonEditor:
             desc_element.clear()
             desc_element.text = updated_description
         
-        # Update media links in ExtendedData
-        if new_images:
-            # Find or create ExtendedData
-            extended_data = placemark.find('.//{http://www.opengis.net/kml/2.2}ExtendedData')
-            if extended_data is None:
-                extended_data = etree.SubElement(placemark, '{http://www.opengis.net/kml/2.2}ExtendedData')
+        # Update media links using gx:Carousel structure
+        # NOTE: KEPT FOR LEGACY SUPPORT, NOT USED IN CURRENT IMPLEMENTATION
+        # if new_images:
+        #     # Remove any existing ExtendedData
+        #     old_extended_data = placemark.find('.//{http://www.opengis.net/kml/2.2}ExtendedData')
+        #     if old_extended_data is not None:
+        #         placemark.remove(old_extended_data)
             
-            # Find or create Data element for media links
-            media_data = extended_data.find('.//kml:Data[@name="gx_media_links"]', 
-                                          namespaces={'kml': 'http://www.opengis.net/kml/2.2'})
-            if media_data is None:
-                media_data = etree.SubElement(extended_data, '{http://www.opengis.net/kml/2.2}Data')
-                media_data.set('name', 'gx_media_links')
+        #     # Remove any existing Carousel
+        #     old_carousel = placemark.find('.//{http://www.google.com/kml/ext/2.2}Carousel')
+        #     if old_carousel is not None:
+        #         placemark.remove(old_carousel)
             
-            # Find or create value element
-            value_element = media_data.find('.//{http://www.opengis.net/kml/2.2}value')
-            if value_element is None:
-                value_element = etree.SubElement(media_data, '{http://www.opengis.net/kml/2.2}value')
+        #     # Create carousel structure
+        #     carousel = etree.SubElement(placemark, '{http://www.google.com/kml/ext/2.2}Carousel')
             
-            # Set the first image as the main media link
-            if new_images:
-                value_element.clear()
-                value_element.text = new_images[0]
+        #     # Add each image to the carousel
+        #     for img_url in new_images:
+        #         img_element = etree.SubElement(carousel, '{http://www.google.com/kml/ext/2.2}Image')
+        #         # Create a simpler ID from the URL
+        #         img_id = 'hosted_image_' + ''.join(c for c in img_url if c.isalnum())[:20] + str(hash(img_url))[-5:] # Ensure ID is unique
+        #         img_element.set('{http://www.opengis.net/kml/2.2}id', img_id)
+                
+        #         # Add image URL
+        #         img_url_element = etree.SubElement(img_element, '{http://www.google.com/kml/ext/2.2}imageUrl')
+        #         img_url_element.text = img_url
         
         print(f"Successfully updated polygon '{polygon_name}'")
         return True

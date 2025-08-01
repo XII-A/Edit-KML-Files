@@ -459,10 +459,10 @@ class KMLPolygonEditor:
                 description_parts[0] = f"عدد المباني تحت القطاع: {description_parts[0]}"
     
                 avgFloors = int(int(description_parts[1]) / denominator)
-                description_parts[1] = f"متوسط عدد الطوابق في المباني: {avgFloors}"
+                description_parts[1] = f"عدد الطوابق في المباني: {avgFloors}"
                 
                 avgArea = int(int(description_parts[2]) / denominator)
-                description_parts[2] = f"متوسط المساحة الاجمالية للمباني: {avgArea} متر"
+                description_parts[2] = f"المساحة الاجمالية للمباني: {avgArea} متر"
                 
                 description_parts[3] = f"عدد المباني السليمة: {description_parts[3]}"
                 description_parts[4] = f"عدد المباني المتضررة جزئيا: {description_parts[4]}"
@@ -470,7 +470,7 @@ class KMLPolygonEditor:
                 description_parts[6] = f"عدد المباني المهدومة: {description_parts[6]}" 
                 
                 avgApartments = int(int(description_parts[7]) / denominator if denominator > 0 else 0)
-                description_parts[7] = f"متوسط عدد الشقق في المباني: {avgApartments}"
+                description_parts[7] = f"عدد الشقق في المباني: {avgApartments}"
                 description_parts[8] = f"مجموع التكلفة التقديرية لترميم الشقق/المباني: {description_parts[8]}"
             
                 new_description += "<br/>".join(

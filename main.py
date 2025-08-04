@@ -456,7 +456,7 @@ class KMLPolygonEditor:
                 description_parts = data['descriptions'].copy()
                 denominator = int(data['descriptions'][0]) # Total number of buildings
                 
-                description_parts[0] = f"عدد المباني تحت القطاع: {description_parts[0]}"
+                description_parts[0] = f"عدد المباني: {description_parts[0]}"
     
                 avgFloors = int(int(description_parts[1]) / denominator)
                 description_parts[1] = f"عدد الطوابق في المباني: {avgFloors}"

@@ -550,6 +550,19 @@ class KMLPolygonEditor:
                     # Skip if already has MultiGeometry
                     multi_geom = placemark.find('.//{http://www.opengis.net/kml/2.2}MultiGeometry')
                     if multi_geom is None:
+                        # Get placemark name
+                        name_element = placemark.find('.//{http://www.opengis.net/kml/2.2}name')
+                        name = name_element.text if name_element is not None else ""
+                        
+                        # Remove any existing styles and styleUrls if name contains English letter
+                        if re.search(r'[A-Za-z]', name):
+                            # Remove inline style
+                            # Add style for invisible point if not already present
+                            style_url = placemark.find('kml:styleUrl', namespaces=ns)
+                            if style_url is None:
+                                style_url = etree.SubElement(placemark, '{http://www.opengis.net/kml/2.2}styleUrl')
+                            style_url.text = '#noIconStyle'
+                        else:
                             # add the style inline
                             style = placemark.find('kml:Style', namespaces=ns)
                             if style is None:

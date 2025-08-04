@@ -550,6 +550,23 @@ class KMLPolygonEditor:
                     # Skip if already has MultiGeometry
                     multi_geom = placemark.find('.//{http://www.opengis.net/kml/2.2}MultiGeometry')
                     if multi_geom is None:
+                            # add the style inline
+                            style = placemark.find('kml:Style', namespaces=ns)
+                            if style is None:
+                                style = etree.SubElement(placemark, '{http://www.opengis.net/kml/2.2}Style')
+                            
+                            # Add IconStyle
+                            icon_style = style.find('kml:IconStyle', namespaces=ns)
+                            if icon_style is None:
+                                icon_style = etree.SubElement(style, '{http://www.opengis.net/kml/2.2}IconStyle')
+                            
+                            # Set scale to 0 to make icon invisible
+                            scale = icon_style.find('kml:scale', namespaces=ns)
+                            if scale is None:
+                                scale = etree.SubElement(icon_style, '{http://www.opengis.net/kml/2.2}scale')
+                            scale.text = '0'
+                            
+                                
                         multi_geom = etree.Element('{http://www.opengis.net/kml/2.2}MultiGeometry')
                         # Move polygon under MultiGeometry
                         multi_geom.append(polygon)
@@ -564,12 +581,9 @@ class KMLPolygonEditor:
                             if child.tag.endswith('Polygon'):
                                 placemark.remove(child)
                         placemark.append(multi_geom)
-                        
-                        # Add style for invisible point if not already present
-                        style_url = placemark.find('kml:styleUrl', namespaces=ns)
-                        if style_url is None:
-                            style_url = etree.SubElement(placemark, '{http://www.opengis.net/kml/2.2}styleUrl')
-                        style_url.text = '#noIconStyle'
+
+  
+                     
         
         print("Converted all polygons to include label points")
 
@@ -608,7 +622,7 @@ class KMLPolygonEditor:
                 'severe': 'ff0000ff',     # Red
                 'destroyed': 'ff000000'   # Black
             }
-            return colors.get(condition, 'ffffffff')  # Default to white if unknown
+            return colors.get(condition, 'ffffffff')  # Default to blue if unknown condition
             
         ns = {'kml': 'http://www.opengis.net/kml/2.2'}
         
@@ -616,7 +630,6 @@ class KMLPolygonEditor:
         for placemark in self.root.xpath('.//kml:Placemark[.//kml:Polygon]', namespaces=ns):
             name_element = placemark.find('.//{http://www.opengis.net/kml/2.2}name')
             name = name_element.text if name_element is not None else ""
-            print(f"Processing polygon Up: {name}")
             # Check if name contains any English letter
             if re.search(r'[A-Za-z]', name):
                 print(f"Processing polygon: {name}")

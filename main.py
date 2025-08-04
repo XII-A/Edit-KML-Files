@@ -519,13 +519,25 @@ class KMLPolygonEditor:
         # Create shared style for invisible points if it doesn't exist
         style_id = "noIconStyle"
         shared_style = document.find(f'.//kml:Style[@id="{style_id}"]', namespaces=ns)
-        if shared_style is None:
-            shared_style = etree.SubElement(document, '{http://www.opengis.net/kml/2.2}Style')
-            shared_style.set('id', style_id)
-            
-            icon_style = etree.SubElement(shared_style, '{http://www.opengis.net/kml/2.2}IconStyle')
-            scale = etree.SubElement(icon_style, '{http://www.opengis.net/kml/2.2}scale')
-            scale.text = '0'  # Make icon invisible
+        
+        # Remove existing style if it exists
+        if shared_style is not None:
+            document.remove(shared_style)
+        
+        # Create new style
+        shared_style = etree.SubElement(document, '{http://www.opengis.net/kml/2.2}Style')
+        shared_style.set('id', style_id)
+        
+        # Add IconStyle
+        icon_style = etree.SubElement(shared_style, '{http://www.opengis.net/kml/2.2}IconStyle')
+        scale = etree.SubElement(icon_style, '{http://www.opengis.net/kml/2.2}scale')
+        scale.text = '0'  # Make icon invisible
+        
+        # Add LabelStyle
+        label_style = etree.SubElement(shared_style, '{http://www.opengis.net/kml/2.2}LabelStyle')
+        color = etree.SubElement(label_style, '{http://www.opengis.net/kml/2.2}color')
+        # dark green color for labels
+        color.text =   'ffC0D996'  # KML format: aabbggrr (alpha=ff)
             
         # Process all placemarks with polygons
         for placemark in self.root.xpath('.//kml:Placemark[kml:Polygon]', namespaces=ns):

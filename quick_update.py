@@ -37,7 +37,7 @@ def quick_process():
         image_columns=['صورة للزاوية 1:_URL', 'صورة للزاوية 2:_URL', 'صورة للزاوية 3:_URL','صورة للزاوية 4:_URL'],
         description_columns=[],
         merge_with_existing=True,
-        border_color="#FFFF00"
+        border_color="#fe3120"
     )
     
     if summary["success"]:

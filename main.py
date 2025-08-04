@@ -499,10 +499,9 @@ class KMLPolygonEditor:
         # Convert all polygons to include label points
         self.convert_all_polygons_to_labeled()
         
-        # If border_color is specified, update all polygon styles
-        if border_color:
-            print("Setting border color for all polygons...")
-            self.set_all_polygon_border_colors(border_color)
+        # Update polygon border colors based on building conditions
+        print("Setting border colors based on building conditions...")
+        self.set_all_polygon_border_colors()
 
         return update_summary
     
@@ -574,91 +573,108 @@ class KMLPolygonEditor:
         
         print("Converted all polygons to include label points")
 
-    def set_all_polygon_border_colors(self, border_color):
+    def set_all_polygon_border_colors(self):
         """
-        Set the border (line) color for all polygons in the KML file using a shared style at Document level.
-        border_color: HTML hex color (e.g. '#FF0000' or 'red')
+        Set the border (line) color for all polygons in the KML file based on building conditions.
+        Colors:
+        - Green (ff00ff00) for mostly safe buildings
+        - Yellow (ff00ffff) for mostly partially damaged
+        - Red (ff0000ff) for mostly severely damaged
+        - Black (ff000000) for mostly destroyed
         """
-        def html_color_to_kml(color):
-            # Handle hex colors
-            color = color.lstrip('#')
-            if len(color) == 6:
-                r, g, b = color[0:2], color[2:4], color[4:6]
-                return f'ff{b}{g}{r}'  # KML format: aabbggrr (alpha=ff)
-            return 'ff0000ff'  # Default red if invalid
+        def get_dominant_condition(description):
+            # Extract building counts from description
+            safe_match = re.search(r'عدد المباني السليمة: (\d+)', description)
+            partial_match = re.search(r'عدد المباني المتضررة جزئيا: (\d+)', description)
+            severe_match = re.search(r'عدد المباني المتضررة بشكل كامل: (\d+)', description)
+            destroyed_match = re.search(r'عدد المباني المهدومة: (\d+)', description)
             
-        kml_color = html_color_to_kml(border_color)
+            # Get counts or default to 0
+            counts = {
+                'safe': int(safe_match.group(1)) if safe_match else 0,
+                'partial': int(partial_match.group(1)) if partial_match else 0,
+                'severe': int(severe_match.group(1)) if severe_match else 0,
+                'destroyed': int(destroyed_match.group(1)) if destroyed_match else 0
+            }
+            
+            # Get condition with highest count
+            max_condition = max(counts.items(), key=lambda x: x[1])
+            return max_condition[0]
+        
+        def get_color_for_condition(condition):
+            colors = {
+                'safe': 'ff00ff00',      # Green
+                'partial': 'ff00ffff',    # Yellow
+                'severe': 'ff0000ff',     # Red
+                'destroyed': 'ff000000'   # Black
+            }
+            return colors.get(condition, 'ffffffff')  # Default to white if unknown
+            
         ns = {'kml': 'http://www.opengis.net/kml/2.2'}
         
-        # Ensure we have a Document element at the root level
-        document = self.root.find('kml:Document', namespaces=ns)
-        if document is None:
-            document = etree.Element('{http://www.opengis.net/kml/2.2}Document')
-            self.root.insert(0, document)  # Insert as first child
-            
-        # Create shared style at Document level
-        style_id = "shared_polygon_style"
-        shared_style = document.find(f'.//kml:Style[@id="{style_id}"]', namespaces=ns)
-        
-        if shared_style is None:
-            # Create new shared style
-            shared_style = etree.Element('{http://www.opengis.net/kml/2.2}Style')
-            shared_style.set('id', style_id)
-            document.insert(0, shared_style)  # Insert at start of Document
-            
-        # Set up LineStyle
-        line_style = shared_style.find('kml:LineStyle', namespaces=ns)
-        if line_style is None:
-            line_style = etree.SubElement(shared_style, '{http://www.opengis.net/kml/2.2}LineStyle')
-            
-        # Set color and width
-        color_elem = line_style.find('kml:color', namespaces=ns)
-        if color_elem is None:
-            color_elem = etree.SubElement(line_style, '{http://www.opengis.net/kml/2.2}color')
-        color_elem.text = kml_color
-            
-        width_elem = line_style.find('kml:width', namespaces=ns)
-        if width_elem is None:
-            width_elem = etree.SubElement(line_style, '{http://www.opengis.net/kml/2.2}width')
-        width_elem.text = '2.5'
-            
-        # Set up PolyStyle
-        poly_style = shared_style.find('kml:PolyStyle', namespaces=ns)
-        if poly_style is None:
-            poly_style = etree.SubElement(shared_style, '{http://www.opengis.net/kml/2.2}PolyStyle')
-            
-        # Ensure outline is visible and fill is transparent
-        outline_elem = poly_style.find('kml:outline', namespaces=ns)
-        if outline_elem is None:
-            outline_elem = etree.SubElement(poly_style, '{http://www.opengis.net/kml/2.2}outline')
-        outline_elem.text = '1'
-            
-        fill_elem = poly_style.find('kml:fill', namespaces=ns)
-        if fill_elem is None:
-            fill_elem = etree.SubElement(poly_style, '{http://www.opengis.net/kml/2.2}fill')
-        fill_elem.text = '0'  # Make polygons transparent
-            
-        print(f"Created/updated shared style at Document level with color {kml_color}")
-            
-        # Apply shared style to all polygons
-        for placemark in self.root.xpath('.//kml:Placemark[kml:Polygon]', namespaces=ns):
+        # Process all placemarks with polygons (either direct or within MultiGeometry)
+        for placemark in self.root.xpath('.//kml:Placemark[.//kml:Polygon]', namespaces=ns):
             name_element = placemark.find('.//{http://www.opengis.net/kml/2.2}name')
             name = name_element.text if name_element is not None else ""
-            
+            print(f"Processing polygon Up: {name}")
             # Check if name contains any English letter
             if re.search(r'[A-Za-z]', name):
-                print(f"Updating style for polygon: {name}")
-                # Remove any existing inline styles
-                for style in placemark.findall('kml:Style', namespaces=ns):
-                    placemark.remove(style)
+                print(f"Processing polygon: {name}")
+                
+                # Check if polygon already has its own style
+                has_own_style = placemark.find('kml:Style', namespaces=ns) is not None
+                if has_own_style:
+                    print(f"Preserving existing style for polygon: {name}")
+                    continue
+                
+                # Get description to determine building conditions
+                desc_element = placemark.find('.//{http://www.opengis.net/kml/2.2}description')
+                if desc_element is not None and desc_element.text:
+                    dominant_condition = get_dominant_condition(desc_element.text)
+                    color = get_color_for_condition(dominant_condition)
                     
-                # Set or update styleUrl
-                style_url = placemark.find('kml:styleUrl', namespaces=ns)
-                if style_url is None:
-                    style_url = etree.SubElement(placemark, '{http://www.opengis.net/kml/2.2}styleUrl')
-                style_url.text = f'#{style_id}'
+                    # Find or create style for this polygon
+                    style = placemark.find('kml:Style', namespaces=ns)
+                    if style is None:
+                        style = etree.SubElement(placemark, '{http://www.opengis.net/kml/2.2}Style')
+                    
+                    # Set up LineStyle
+                    line_style = style.find('kml:LineStyle', namespaces=ns)
+                    if line_style is None:
+                        line_style = etree.SubElement(style, '{http://www.opengis.net/kml/2.2}LineStyle')
+                    
+                    # Update or create color element
+                    color_elem = line_style.find('kml:color', namespaces=ns)
+                    if color_elem is None:
+                        color_elem = etree.SubElement(line_style, '{http://www.opengis.net/kml/2.2}color')
+                    color_elem.text = color
+                    
+                    # Update or create width element
+                    width_elem = line_style.find('kml:width', namespaces=ns)
+                    if width_elem is None:
+                        width_elem = etree.SubElement(line_style, '{http://www.opengis.net/kml/2.2}width')
+                    width_elem.text = '2.5'
+                    
+                    # Set up PolyStyle
+                    poly_style = style.find('kml:PolyStyle', namespaces=ns)
+                    if poly_style is None:
+                        poly_style = etree.SubElement(style, '{http://www.opengis.net/kml/2.2}PolyStyle')
+                    
+                    # Update or create outline element
+                    outline_elem = poly_style.find('kml:outline', namespaces=ns)
+                    if outline_elem is None:
+                        outline_elem = etree.SubElement(poly_style, '{http://www.opengis.net/kml/2.2}outline')
+                    outline_elem.text = '1'
+                    
+                    # Update or create fill element
+                    fill_elem = poly_style.find('kml:fill', namespaces=ns)
+                    if fill_elem is None:
+                        fill_elem = etree.SubElement(poly_style, '{http://www.opengis.net/kml/2.2}fill')
+                    fill_elem.text = '0'  # Make polygons transparent
+                    
+                    print(f"Set border color for polygon {name} to {dominant_condition} ({color})")
             else:
-                print(f"Preserving existing style for polygon: {name}")    
+                print(f"Skipping polygon without English letter in name: {name}")
 
     def preview_excel_updates(self, excel_file_path, polygon_column, image_columns, description_columns, 
                             sheet_name=0):

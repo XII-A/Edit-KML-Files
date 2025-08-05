@@ -1,3 +1,4 @@
+import math
 from lxml import etree
 import re
 import pandas as pd
@@ -609,7 +610,24 @@ class KMLPolygonEditor:
         - Red (ff0000ff) for mostly severely damaged
         - Black (ff000000) for mostly destroyed
         """
-        def get_dominant_condition(description):
+        def hex_to_rgb(color: str):
+            # KML format: AABBGGRR (e.g., 'ff00ff00' => R=00, G=ff, B=00)
+            color = color.lower()
+            bb = int(color[2:4], 16)
+            gg = int(color[4:6], 16)
+            rr = int(color[6:8], 16)
+            return rr, gg, bb
+        
+        def get_color_for_condition(condition):
+            colors = {
+                'safe': 'ff00ff00',      # Green
+                'partial': 'ff00ffff',    # Yellow
+                'severe': 'ff0000ff',     # Red
+                'destroyed': 'ff000000'   # Black
+            }
+            return colors.get(condition, 'ffffffff')  # Default to blue if unknown condition
+
+        def get_blended_color(description):
             # Extract building counts from description
             safe_match = re.search(r'عدد المباني السليمة: (\d+)', description)
             partial_match = re.search(r'عدد المباني المتضررة جزئيا: (\d+)', description)
@@ -623,19 +641,28 @@ class KMLPolygonEditor:
                 'severe': int(severe_match.group(1)) if severe_match else 0,
                 'destroyed': int(destroyed_match.group(1)) if destroyed_match else 0
             }
+
+            total_count = sum(counts.values())
+
+            if total_count == 0:
+                return 'ff00ff00'
             
-            # Get condition with highest count
-            max_condition = max(counts.items(), key=lambda x: x[1])
-            return max_condition[0]
+            sum_r = sum_g = sum_b = 0
+            
+            for state,count in counts.items():
+                if count == 0:
+                    continue
+                r,g,b = hex_to_rgb(get_color_for_condition(state))
+                weight = count / total_count
+                sum_r += (r * r) * weight
+                sum_g += (g * g) * weight
+                sum_b += (b * b) * weight
+            belnded_r = int(math.sqrt(sum_r))
+            belnded_g = int(math.sqrt(sum_g))
+            belnded_b = int(math.sqrt(sum_b))
+            return f'ff{belnded_b:02x}{belnded_g:02x}{belnded_r:02x}'  # KML format: AABBGGRR
         
-        def get_color_for_condition(condition):
-            colors = {
-                'safe': 'ff00ff00',      # Green
-                'partial': 'ff00ffff',    # Yellow
-                'severe': 'ff0000ff',     # Red
-                'destroyed': 'ff000000'   # Black
-            }
-            return colors.get(condition, 'ffffffff')  # Default to blue if unknown condition
+
             
         ns = {'kml': 'http://www.opengis.net/kml/2.2'}
         
@@ -656,8 +683,7 @@ class KMLPolygonEditor:
                 # Get description to determine building conditions
                 desc_element = placemark.find('.//{http://www.opengis.net/kml/2.2}description')
                 if desc_element is not None and desc_element.text:
-                    dominant_condition = get_dominant_condition(desc_element.text)
-                    color = get_color_for_condition(dominant_condition)
+                    color = get_blended_color(desc_element.text)
                     
                     # Find or create style for this polygon
                     style = placemark.find('kml:Style', namespaces=ns)
@@ -698,7 +724,7 @@ class KMLPolygonEditor:
                         fill_elem = etree.SubElement(poly_style, '{http://www.opengis.net/kml/2.2}fill')
                     fill_elem.text = '0'  # Make polygons transparent
                     
-                    print(f"Set border color for polygon {name} to {dominant_condition} ({color})")
+                    print(f"Set border color for polygon {name} to  ({color})")
             else:
                 print(f"Skipping polygon without English letter in name: {name}")
 

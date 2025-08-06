@@ -355,9 +355,9 @@ class KMLPolygonEditor:
                 
                 polygon_data[polygon_name]['descriptions'][0] += 1
                 polygon_data[polygon_name]['descriptions'][1] += int(row['عدد الطوابق في البناء (رقما):']) if pd.notna(row['عدد الطوابق في البناء (رقما):']) else 0
-                polygon_data[polygon_name]['descriptions'][2] += int(row['المساحة الاجمالية  (متر)']) if pd.notna(row['المساحة الاجمالية  (متر)']) else 0
+                polygon_data[polygon_name]['descriptions'][2] += int(row['المساحة الفردية:']) if pd.notna(row['المساحة الفردية:']) else 0
                 polygon_data[polygon_name]['descriptions'][7] += int(row['ما هو عدد الشقق في البناء:']) if pd.notna(row['ما هو عدد الشقق في البناء:']) else 0
-                polygon_data[polygon_name]['descriptions'][8] += int(row['ما هي التكلفة التقديرية لترميم الشقق/المبنى؟']) if pd.notna(row['ما هي التكلفة التقديرية لترميم الشقق/المبنى؟']) else 0
+                polygon_data[polygon_name]['descriptions'][8] += int(row['التكلفة الاجمالية للواجهة+الشقق/المبنى:']) if pd.notna(row['التكلفة الاجمالية للواجهة+الشقق/المبنى:']) else 0
 
                 if  "سليم" in row['ما هو نوع الضرر الذي أصاب البناء:']:
                     polygon_data[polygon_name]['descriptions'][3] += 1
@@ -462,8 +462,8 @@ class KMLPolygonEditor:
                 avgFloors = int(int(description_parts[1]) / denominator)
                 description_parts[1] = f"عدد الطوابق في المباني: {avgFloors}"
                 
-                avgArea = int(int(description_parts[2]) / denominator)
-                description_parts[2] = f"المساحة الاجمالية للمباني: {avgArea} متر"
+                totalArea = int(description_parts[2]) 
+                description_parts[2] = f"المساحة الاجمالية للمباني: {totalArea} متر"
                 
                 description_parts[3] = f"عدد المباني السليمة: {description_parts[3]}"
                 description_parts[4] = f"عدد المباني المتضررة جزئيا: {description_parts[4]}"
@@ -502,7 +502,7 @@ class KMLPolygonEditor:
         
         # Update polygon border colors based on building conditions
         print("Setting border colors based on building conditions...")
-        self.set_all_polygon_border_colors()
+        # self.set_all_polygon_border_colors()
 
         return update_summary
     
